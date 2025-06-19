@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>简易购物网站</title>
+    <style>
+        /* 优化删除按钮样式 */
+        .expiry-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        /* 保持原有其他样式不变 */
+        body {
+            font-family: Arial, 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 60px;
+        }
+        .product-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        .product-img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            margin: 0 auto 10px;
+        }
+        .cart-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .add-btn, .remove-btn {
+            cursor: pointer;
+            font-size: 20px;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+        }
+        .add-btn {
+            background: #007bff;
+        }
+        .remove-btn {
+            background: #dc3545;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .cart-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        #input-interface {
+            display: none;
+            margin: 20px;
+        }
+        .expiry-input {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="products" id="products-container"></div>
+
+    <div id="input-interface">
+        <div class="expiry-input">
+            <input type="text" id="food-name" placeholder="菜品名称">
+            <input type="date" id="expiry-date">
+            <button onclick="addExpiry()">添加记录</button>
+        </div>
+        <div id="expiry-list"></div>
+    </div>
+
+    <div class="bottom-nav">
+        <button class="nav-btn" onclick="showInterface('home')">Home</button>
+        <button class="nav-btn" onclick="toggleCart()">
+            购物车 (<span id="cart-total">0</span>)
+        </button>
+        <button class="nav-btn" onclick="showInterface('expiry')">保质期记录</button>
+    </div>
+
+    <div class="cart-modal" id="cart-modal">
+        <h3>购物车内容</h3>
+        <div id="cart-items"></div>
+        <button onclick="toggleCart()">关闭</button>
+    </div>
+
+    <script>
+        // 商品数据
+        const products = [
+                       { id: 1, name: "milk；牛奶", price: "¥20/瓶", image: "https://img.rtacdn-os.com/20250515/76d6fc57-dec2-3627-941d-f96529864230" },
+            { id: 2, name: "beef；牛肉", price: "¥61.8/500g", image: "https://i.epochtimes.com/assets/uploads/2021/08/id13192849-wagyu-600x400.jpg" },
+            { id: 3, name: "pork；猪肉", price: "¥38/500g", image: "https://rimage.gnst.jp/livejapan.com/public/article/detail/a/00/04/a0004881/img/zh-cn/a0004881_parts_606a5faee9707.jpg?20210405095116&q=80" },
+            { id: 4, name: "chicken；鸡肉", price: "¥30/500g", image: "https://www.haitian-food.com/upfile/2018/03/20180313210554_747.jpg" },
+            { id: 5, name: "vegetable；蔬菜", price: "¥6/300g", image: "https://cherubbaby.com.au/cdn/shop/articles/20210811081230-Vegetable_20stock_1986x.png?v=1628669564" },
+            { id: 6, name: "soy；黄豆", price: "¥38/400g", image: "https://i.epochtimes.com/assets/uploads/2021/08/id13192553-shutterstock_288662972-600x400.jpg" },
+            { id: 7, name: "peanut oil；花生油", price: "¥100/5L", image: "https://assets.unileversolutions.com/v1/132210768.jpg?im=AspectCrop=(1200,800);Resize=(1200,800)" },
+            { id: 8, name: "egg；鸡蛋", price: "¥48/10颗", image: "https://cdn.britannica.com/94/151894-050-F72A5317/Brown-eggs.jpg?w=300" },
+            { id: 9, name: "salt；盐", price: "¥5.7/454g", image: "https://static.vegsoc.org/app/uploads/2024/07/shutterstock_2315756181-708x480.jpg" },
+            { id: 10, name: "noodle；面", price: "¥20/800g", image: "https://upload.wikimedia.org/wikipedia/commons/7/73/Mama_instant_noodle_block.jpg" },
+        ];
+
+        let cart = {};
+
+        // 商品列表初始化
+        function renderProducts() {
+            const container = document.getElementById('products-container');
+            container.innerHTML = products.map(product => `
+                <div class="product-item">
+                    <img src="${product.image}" class="product-img">
+                    <h3>${product.name}</h3>
+                    <p>${product.price}</p> <!-- 移除了¥符号自动生成 -->
+                    <div class="cart-control">
+                        <button class="remove-btn" onclick="removeFromCart(${product.id})">-</button>
+                        <span id="count-${product.id}">0</span>
+                        <button class="add-btn" onclick="addToCart(${product.id})">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 购物车功能
+        function addToCart(productId) {
+            cart[productId] = (cart[productId] || 0) + 1;
+            updateCartDisplay();
+        }
+
+        function removeFromCart(productId) {
+            if (cart[productId] && cart[productId] > 0) {
+                cart[productId]--;
+                if (cart[productId] === 0) delete cart[productId];
+                updateCartDisplay();
+            }
+        }
+
+        function updateCartDisplay() {
+            products.forEach(product => {
+                document.getElementById(`count-${product.id}`).textContent = cart[product.id] || 0;
+            });
+            
+            const total = Object.values(cart).reduce((a, b) => a + b, 0);
+            document.getElementById('cart-total').textContent = total;
+            
+            document.getElementById('cart-items').innerHTML = 
+                Object.entries(cart).map(([id, qty]) => {
+                    const product = products.find(p => p.id === Number(id));
+                    return `<p>${product.name} × ${qty}</p>`;
+                }).join('');
+        }
+
+        function toggleCart() {
+            const modal = document.getElementById('cart-modal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // 界面切换
+        function showInterface(type) {
+            document.getElementById('products-container').style.display = type === 'home' ? 'grid' : 'none';
+            document.getElementById('input-interface').style.display = type === 'expiry' ? 'block' : 'none';
+            document.getElementById('cart-modal').style.display = 'none';
+        }
+
+        // 保质期功能增强版
+        function addExpiry() {
+            const name = document.getElementById('food-name').value;
+            const date = document.getElementById('expiry-date').value;
+            
+            if (name && date) {
+                const entry = document.createElement('div');
+                entry.className = 'expiry-item';
+                entry.innerHTML = `
+                    <span>${name} - 过期时间: ${date}</span>
+                    <button class="delete-btn" onclick="this.parentElement.remove()">删除</button>
+                `;
+                document.getElementById('expiry-list').appendChild(entry);
+                
+                // 清空输入并保持焦点
+                document.getElementById('food-name').value = '';
+                document.getElementById('expiry-date').value = '';
+                document.getElementById('food-name').focus();
+            }
+        }
+
+        // 初始化页面
+        renderProducts();
+    </script>
+</body>
+</html>
